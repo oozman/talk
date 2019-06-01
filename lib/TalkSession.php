@@ -58,7 +58,12 @@ class TalkSession {
 		$this->removeValue('spreed-password', $token);
 	}
 
-	protected function getValue(string $key, string $token): ?string {
+	/**
+	 * @param string $key
+	 * @param string $token
+	 * @return string|null
+	 */
+	protected function getValue(string $key, string $token) {
 		$values = $this->session->get($key);
 		if ($values === null) {
 			return null;

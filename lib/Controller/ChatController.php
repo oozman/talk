@@ -126,27 +126,16 @@ class ChatController extends AEnvironmentAwareController {
      */
     private function getRoomFromToken($token)
     {
-        try {
-            $room = $this->manager->getRoomForSession($this->userId, $this->session->getSessionForRoom($token));
-        } catch (RoomNotFoundException $exception) {
-            if ($this->userId === null) {
-                return null;
-            }
-
-            // For logged in users we search for rooms where they are real
-            // participants.
-            try {
-                $room = $this->manager->getRoomForParticipantByToken($token, $this->userId);
-                $room->getParticipant($this->userId);
-            } catch (RoomNotFoundException $exception) {
-                return null;
-            } catch (ParticipantNotFoundException $exception) {
-                return null;
-            }
-        }
-
-        $this->room = $room;
-
+		try {
+			$room = $this->manager->getRoomForParticipantByToken($token, $this->userId);
+			$room->getParticipant($this->userId);
+			
+		} catch (RoomNotFoundException $exception) {
+			return null;
+		} catch (ParticipantNotFoundException $exception) {
+			return null;
+		}
+		
         return $room;
     }
 
@@ -260,7 +249,7 @@ class ChatController extends AEnvironmentAwareController {
     public function receiveMessages($token, $lookIntoFuture, $limit = 100, $lastKnownMessageId = 0, $timeout = 30)
     {
 		$room = $this->getRoomFromToken($token);
-		
+
         if ($room === null) {
             return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}
@@ -302,16 +291,7 @@ class ChatController extends AEnvironmentAwareController {
                 $displayName = $user instanceof IUser ? $user->getDisplayName() : '';
             } else if ($comment->getActorType() === 'guests' && isset($guestNames[$comment->getActorId()])) {
                 $displayName = $guestNames[$comment->getActorId()];
-            }
-
-			// Check relevance of code
-			
-            // list($message, $messageParameters) = $this->messageParser->parseMessageByRoomAndMessage(
-			// 	$room, 
-			// 	$comment, 
-			// 	$this->l, 
-			// 	$currentUser
-			// );
+			}
 		
             return [
                 'id'                => (int)$comment->getId(),
@@ -320,8 +300,8 @@ class ChatController extends AEnvironmentAwareController {
                 'actorId'           => $comment->getActorId(),
                 'actorDisplayName'  => $displayName,
                 'timestamp'         => $comment->getCreationDateTime()->getTimestamp(),
-                'message'           => $message,
-                'messageParameters' => $messageParameters,
+				'message' 			=> $comment->getMessage(),
+				'messageParameters' => [],
                 'systemMessage'     => $comment->getVerb() === 'system' ? $comment->getMessage() : '',
             ];
 		}, $comments), Http::STATUS_OK);
@@ -389,48 +369,4 @@ class ChatController extends AEnvironmentAwareController {
 		}
 		return $output;
 	}
-
-	/**
-     * @NoAdminRequired
-     * Add or update user status.
-     *
-     * @return DataResponse
-     */
-    public function updateUserStatus()
-    {
-        // Initialize user status DAO.
-        $userStatusDAO = new UserStatusDAO($this->db);
-
-        // Get request parameters.
-        $userId = $this->request->getParam('userId', false);
-        $status = $this->request->getParam('status', false);
-
-        // Make sure parameters are valid.
-        if ( ! $userStatusDAO->validate($userId, $status)) {
-            return new DataResponse(null, Http::STATUS_FORBIDDEN);
-        }
-
-        $userStatus = $userStatusDAO->addOrUpdateStatus($userId, $status);
-
-        return new DataResponse($userStatus, Http::STATUS_OK);
-	}
-	
-	 /**
-     * @NoAdminRequired
-     * Get list of user status by userIds.
-     *
-     * @return DataResponse
-     */
-    public function getUserStatus()
-    {
-        // Initialize user status DAO.
-        $userStatusDAO = new UserStatusDAO($this->db);
-
-        // Get request parameters.
-        $userIds = $this->request->getParam('userIds', []);
-
-        $result = $userStatusDAO->findByUserIds($userIds);
-
-        return new DataResponse($result, Http::STATUS_OK);
-    }
 }
